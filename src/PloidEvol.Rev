@@ -53,6 +53,7 @@ ploidy_data = readCharacterDataDelimited("data/ploidyvalsrevbayes.csv",
 ##rho.setValue(0.066)
 num_events ~ dnExponential(1/100)
 num_events.setValue(100)
+mvi = 1
 moves[mvi++] = mvScale(num_events, lambda=20, weight=3)
 moves[mvi++] = mvScale(num_events, lambda=2, weight=3)
 rate_pr := phylogeny.treeLength() / num_events
@@ -65,7 +66,6 @@ epsilon ~ dnExponential(rate_pr)
 rho ~ dnExponential(rate_pr)
 
 # add MCMC moves for each of the rates
-mvi = 1
 moves[mvi++] = mvScale(alpha, lambda=1, weight=1) 
 moves[mvi++] = mvScale(beta, lambda=1, weight=1) 
 moves[mvi++] = mvScale(omega, lambda=1, weight=1) 
