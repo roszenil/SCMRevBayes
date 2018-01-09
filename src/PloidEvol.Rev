@@ -51,19 +51,34 @@ ploidy_data = readCharacterDataDelimited("data/ploidyvalsrevbayes.csv",
 ## duplication
 #rho ~ dnBeta(1, 3)
 ##rho.setValue(0.066)
-num_events ~ dnExponential(1/100)
-num_events.setValue(100)
-mvi = 1
-moves[mvi++] = mvScale(num_events, lambda=20, weight=3)
-moves[mvi++] = mvScale(num_events, lambda=2, weight=3)
-rate_pr := phylogeny.treeLength() / num_events
 
-alpha ~ dnExponential(rate_pr)
-beta ~ dnExponential(rate_pr)
-omega ~ dnExponential(rate_pr)
-delta ~ dnExponential(rate_pr)
-epsilon ~ dnExponential(rate_pr)
-rho ~ dnExponential(rate_pr)
+# set up hyperpriors for each transition rate
+mvi = 1
+for (i in 1:6) {
+    num_events[i] ~ dnExponential(1/100)
+    num_events[i].setValue(100)
+    moves[mvi++] = mvScale(num_events[i], lambda=20, weight=3)
+    moves[mvi++] = mvScale(num_events[i], lambda=2, weight=3)
+    rate_pr[i] := phylogeny.treeLength() / num_events[i]
+}
+
+# even to odd increase
+alpha ~ dnExponential(rate_pr[1])
+
+# even to odd decrease
+beta ~ dnExponential(rate_pr[2])
+
+# odd to even increase
+omega ~ dnExponential(rate_pr[3])
+
+# diploidization
+delta ~ dnExponential(rate_pr[4])
+
+# even to even increase
+epsilon ~ dnExponential(rate_pr[5])
+
+# duplication
+rho ~ dnExponential(rate_pr[6])
 
 # add MCMC moves for each of the rates
 moves[mvi++] = mvScale(alpha, lambda=1, weight=1) 
@@ -72,6 +87,13 @@ moves[mvi++] = mvScale(omega, lambda=1, weight=1)
 moves[mvi++] = mvScale(delta, lambda=1, weight=1) 
 moves[mvi++] = mvScale(epsilon, lambda=1, weight=1) 
 moves[mvi++] = mvScale(rho, lambda=1, weight=1) 
+
+moves[mvi++] = mvScale(alpha, lambda=0.01, weight=1) 
+moves[mvi++] = mvScale(beta, lambda=0.01, weight=1) 
+moves[mvi++] = mvScale(omega, lambda=0.01, weight=1) 
+moves[mvi++] = mvScale(delta, lambda=0.01, weight=1) 
+moves[mvi++] = mvScale(epsilon, lambda=0.01, weight=1) 
+moves[mvi++] = mvScale(rho, lambda=0.01, weight=1) 
 
 # now the transition rate matrix
 
@@ -128,7 +150,13 @@ Q := fnFreeK(q, rescaled=false, matrixExponentialMethod="scalingAndSquaring")
 
 # here we assume the frequency of ploidy levels at the root of the tree are equal. 
 #root_frequencies := simplex(rep(1, 13))
-root_frequencies := simplex([0,0,1,1,1,1,1,1,1,1,1,1,1])
+#root_frequencies := simplex([0,0,1,1,1,1,1,1,1,1,1,1,1])
+
+# fix root to diploid
+#root_frequencies := simplex([0,0,1,0,0,0,0,0,0,0,0,0,0])
+root_frequencies ~ dnDirichlet(rep(1, 13))
+moves[mvi++] = mvBetaSimplex(root_frequencies, alpha=0.5, weight=3)
+moves[mvi++] = mvElementSwapSimplex(root_frequencies, weight=3)
 
 # create the CTMC and clamp observed data
 ctmc ~ dnPhyloCTMC(Q=Q, tree=phylogeny, nSites=1, rootFreq=root_frequencies, type="NaturalNumbers")
